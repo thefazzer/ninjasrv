@@ -1,0 +1,12 @@
+{
+  "name": "ninjasrv",
+  "version": "1.0.0",
+  "main": "Express.js",
+  "scripts": {
+    "start": "node Express.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "google-auth-library": "^7.1.2"
+  }
+}
