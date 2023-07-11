@@ -1,3 +1,33 @@
+
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+
+passport.use(new GoogleStrategy({
+  clientID: GOOGLE_CLIENT_ID,
+  clientSecret: GOOGLE_CLIENT_SECRET,
+  callbackURL: "http://www.example.com/auth/google/callback"
+},
+function(accessToken, refreshToken, profile, cb) {
+  // Here you would typically look up the user in your database using the profile info
+  // And perform your admin check
+  // For this dummy example, let's say every Google user is an admin
+  return cb(null, profile);
+}
+));
+
+// Here's a route that triggers the Google authentication
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile'] }));
+
+// And here's the callback route Google will redirect the user to after they have signed in
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/');
+  });
+
+
 const express = require('express');
 const app = express();
 const port = 3000;
