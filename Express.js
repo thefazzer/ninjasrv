@@ -15,6 +15,12 @@ function(accessToken, refreshToken, profile, cb) {
 }
 ));
 
+
+const express = require('express');
+const app = express();
+const port = 3000;
+
+
 // Here's a route that triggers the Google authentication
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile'] }));
@@ -27,10 +33,6 @@ app.get('/auth/google/callback',
     res.redirect('/');
   });
 
-
-const express = require('express');
-const app = express();
-const port = 3000;
 
 let dummyServiceStatus = 'stopped';
 
