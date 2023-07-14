@@ -40,12 +40,12 @@ let dummyServiceStatus = 'stopped';
 function isAdmin(req, res, next) {
   // TODO: Implement your authentication logic here.
   // This is just a placeholder
-  //next();
-  if (req.get('Authorization') === 'Bearer admin') {
-    next();
-  } else {
-    res.status(403).send('You are not authorized to perform this action');
-  }
+  next();
+  //if (req.get('Authorization') === 'Bearer admin') {
+  //  next();
+  //} else {
+  //res.status(403).send('You are not authorized to perform this action');
+  //}
 }
 
 // Status endpoint
