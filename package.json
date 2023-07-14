@@ -9,6 +9,7 @@
     "express": "^4.17.1",
     "google-auth-library": "^7.1.2",
     "passport-google-oauth20": "*",
+    "express-session": "^1.17.2",
     "passport": "*"
   }
 }
