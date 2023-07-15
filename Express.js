@@ -29,7 +29,7 @@ passport.deserializeUser(function(user, done) {
 passport.use(new GoogleStrategy({
   clientID: '740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com',
   clientSecret: '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',
-  callbackURL: "http://localhost:3000/auth/google/callback"
+  callbackURL: 'http://localhost:3000/callback' 
 },
 function(accessToken, refreshToken, profile, cb) {
   profile.accessToken = accessToken;
@@ -66,14 +66,38 @@ function(accessToken, refreshToken, profile, cb) {
   });
 }));
 
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'https://www.googleapis.com/auth/drive'] }));
+app.get('/auth/google', passport.authenticate('google', {
+  scope: ['profile', 'https://www.googleapis.com/auth/drive']
+}));
+
+
 
 app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  function(req, res) {
-    res.redirect('/');
-  });
+  passport.authenticate('google'), 
+  (req, res) => {
+  
+  const code = req.query.code;
+
+  const {OAuth2Client} = require('google-auth-library');
+  const client = new OAuth2Client(CLIENT_ID);
+  
+  async function getTokens(){
+    const r = await client.getToken(code);
+    return r.tokens;
+  }
+
+  getTokens()
+    .then(tokens => {
+      const {access_token, refresh_token} = tokens;
+      req.user.accessToken = access_token;
+      req.user.refreshToken = refresh_token;
+      res.redirect('/');
+    })
+    .catch(error => {
+      // handle error
+    });
+
+});
 
 let dummyServiceStatus = 'stopped';
 
@@ -106,6 +130,10 @@ app.get('/list-files', isAdmin, (req, res) => {
     expiry_date: (new Date()).getTime() + (1000 * 60)  
   });
 
+  app.get('/files', (req, res) => {
+    const accessToken = req.user.accessToken;
+    // TBD
+  });
 
   const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
