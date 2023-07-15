@@ -45,7 +45,7 @@ function(accessToken, refreshToken, profile, cb) {
     }
 
     // Now that the tokens have been written, we can attempt to mount the drive
-    exec('google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 ~/.gdfuse/default/config < /path/to/tokens.json', (err, stdout, stderr) => {
+    exec('google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 ~/.gdfuse/default/config < /tokens.json', (err, stdout, stderr) => {
       if (err) {
         console.error(`exec error: ${err}`);
         return cb(err);
