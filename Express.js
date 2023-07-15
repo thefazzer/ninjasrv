@@ -6,7 +6,7 @@ const { google } = require('googleapis');
 
 const app = express();
 const port = 3000;
-
+const YOUR_FOLDER_ID = `1VgStbKc5zL0DFJ7BRZYGf7nlu7-OOThM`
 app.use(session({ secret: 'your-secret', resave: false, saveUninitialized: true }));
 
 app.use(passport.initialize());
@@ -72,7 +72,7 @@ app.get('/list-files', isAdmin, (req, res) => {
   const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
   drive.files.list({
-    q: "'folder_id' in parents",
+    q: "'" + YOUR_FOLDER_ID + "' in parents", // Replace YOUR_FOLDER_ID with your actual folder ID
     fields: 'files(id, name)',
     spaces: 'drive'
   }, (err, result) => {
