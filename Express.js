@@ -38,6 +38,7 @@ function(accessToken, refreshToken, profile, cb) {
     access_token: accessToken,
     refresh_token: refreshToken
   };
+  
 
   fs.writeFile('tokens.json', JSON.stringify(tokens, null, 2), (err) => {
     if (err) {
@@ -101,8 +102,10 @@ app.post('/stop', isAdmin, (req, res) => {
 app.get('/list-files', isAdmin, (req, res) => {
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({
-    access_token: req.user.accessToken
+    access_token: req.user.accessToken,
+    expiry_date: (new Date()).getTime() + (1000 * 60)  
   });
+
 
   const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
