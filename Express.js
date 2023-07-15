@@ -1,8 +1,13 @@
+
+const fs = require('fs');
+const exec = require('child_process').exec;
+
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const express = require('express');
 const session = require('express-session');
 const { google } = require('googleapis');
+
 
 const app = express();
 const port = 3000;
@@ -27,7 +32,30 @@ passport.use(new GoogleStrategy({
 },
 function(accessToken, refreshToken, profile, cb) {
   profile.accessToken = accessToken;
-  return cb(null, profile);
+
+  let tokens = {
+    access_token: accessToken,
+    refresh_token: refreshToken
+  };
+
+  fs.writeFile('tokens.json', JSON.stringify(tokens, null, 2), (err) => {
+    if (err) {
+      console.error(err);
+      return cb(err);
+    }
+
+    // Now that the tokens have been written, we can attempt to mount the drive
+    exec('google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 ~/.gdfuse/default/config < /path/to/tokens.json', (err, stdout, stderr) => {
+      if (err) {
+        console.error(`exec error: ${err}`);
+        return cb(err);
+      }
+
+      console.log(`stdout: ${stdout}`);
+      console.log(`stderr: ${stderr}`);
+      return cb(null, profile);
+    });
+  });
 }));
 
 app.get('/auth/google',
