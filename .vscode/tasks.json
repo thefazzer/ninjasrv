@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "git add, commit and push",
+        "type": "shell",
+        "command": "git add . && git commit -m \"Commit made on $(date)\" && git push",
+        "problemMatcher": []
+      }
+    ]
+  }
+  
