@@ -17,6 +17,12 @@ RUN apt-get update && apt-get install -y \
   libasound2-dev \
   software-properties-common
 
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:alessandro-strada/ppa -y && \
+    apt-get update && \
+    apt-get install -y google-drive-ocamlfuse
+
 # Clone and build whisper
 WORKDIR /whisper.cpp
 RUN git clone https://github.com/ggerganov/whisper.cpp.git .
