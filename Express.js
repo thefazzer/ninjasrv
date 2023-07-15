@@ -1,5 +1,6 @@
 
 const fs = require('fs');
+const path = require('path');
 const exec = require('child_process').exec;
 
 const passport = require('passport');
@@ -43,6 +44,11 @@ function(accessToken, refreshToken, profile, cb) {
       console.error(err);
       return cb(err);
     }
+
+    const dirPath = path.resolve(__dirname, '.gdfuse/default/config');
+
+    // create directory if not exist
+    fs.mkdirSync(dirPath, { recursive: true });
 
     // Now that the tokens have been written, we can attempt to mount the drive
     exec('google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 ~/.gdfuse/default/config < /ninjasrv/tokens.json', (err, stdout, stderr) => {
