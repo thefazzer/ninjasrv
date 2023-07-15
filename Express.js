@@ -45,13 +45,14 @@ function(accessToken, refreshToken, profile, cb) {
       return cb(err);
     }
 
-    const dirPath = path.resolve(__dirname, '.gdfuse/default/config');
+    const mountDir = path.resolve(__dirname, 'gdrive');
 
     // create directory if not exist
-    fs.mkdirSync(dirPath, { recursive: true });
+    fs.mkdirSync(mountDir, { recursive: true });
 
     // Now that the tokens have been written, we can attempt to mount the drive
-    exec('google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 .gdfuse/default/config < /ninjasrv/tokens.json', (err, stdout, stderr) => {
+    // We should mount to a directory, not a config file
+    exec(`google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 ${mountDir} < ./tokens.json`, (err, stdout, stderr) => {
       if (err) {
         console.error(`exec error: ${err}`);
         return cb(err);
@@ -65,7 +66,7 @@ function(accessToken, refreshToken, profile, cb) {
 }));
 
 app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'https://www.googleapis.com/auth/drive.readonly'] }));
+  passport.authenticate('google', { scope: ['profile', 'https://www.googleapis.com/auth/drive'] }));
 
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: '/login' }),
