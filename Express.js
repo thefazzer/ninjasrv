@@ -79,7 +79,7 @@ app.get('/auth/google/callback',
 
 const { isAuthenticated } = require('passport');
 
-app.get('/list-files', isAuthenticated, async (req, res) => {
+app.get('/list-files', isAuthenticated, async (req, res, next) => {
 
   try {
 
