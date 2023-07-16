@@ -11,6 +11,7 @@
     "passport-google-oauth20": "*",
     "googleapis": "*",
     "express-session": "^1.17.2",
-    "passport": "*"
+    "passport": "*",
+    "dotenv": "*"
   }
 }
