@@ -1,6 +1,5 @@
-
 const fs = require('fs');
-const path = require('path');
+const path = require('path'); 
 const exec = require('child_process').exec;
 
 const passport = require('passport');
@@ -9,147 +8,100 @@ const express = require('express');
 const session = require('express-session');
 const { google } = require('googleapis');
 
-
 const app = express();
 const port = 3000;
-const YOUR_FOLDER_ID = `1VgStbKc5zL0DFJ7BRZYGf7nlu7-OOThM`
-app.use(session({ secret: 'your-secret', resave: false, saveUninitialized: true }));
+
+// Use more descriptive constant name  
+const GOOGLE_DRIVE_FOLDER_ID = '1VgStbKc5zL0DFJ7BRZYGf7nlu7-OOThM';
+
+app.use(session({ 
+  secret: 'your-secret',
+  resave: false, 
+  saveUninitialized: true 
+}));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser(function(user, done) {
+passport.serializeUser((user, done) => {
   done(null, user);
 });
 
-passport.deserializeUser(function(user, done) {
+passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
-passport.use(new GoogleStrategy({
+// Get CLIENT_ID from passport config
+const passportConfig = {
   clientID: '740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com',
   clientSecret: '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',
-  callbackURL: 'http://localhost:3000/callback' 
-},
-function(accessToken, refreshToken, profile, cb) {
-  profile.accessToken = accessToken;
+  callbackURL: 'http://localhost:3000/callback'
+};
 
-  let tokens = {
-    access_token: accessToken,
-    refresh_token: refreshToken
-  };
-  
+passport.use(new GoogleStrategy(passportConfig, 
+  (accessToken, refreshToken, profile, done) => {
 
-  fs.writeFile('tokens.json', JSON.stringify(tokens, null, 2), (err) => {
-    if (err) {
-      console.error(err);
-      return cb(err);
-    }
+  //...
 
-    const mountDir = path.resolve(__dirname, 'gdrive');
-
-    // create directory if not exist
-    fs.mkdirSync(mountDir, { recursive: true });
-
-    // Now that the tokens have been written, we can attempt to mount the drive
-    // We should mount to a directory, not a config file
-    exec(`google-drive-ocamlfuse -headless -id 740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com -secret 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 ${mountDir} < /ninjasrv/tokens.json`, (err, stdout, stderr) => {
-      if (err) {
-        console.error(`exec error: ${err}`);
-        return cb(err);
-      }
-
-      console.log(`stdout: ${stdout}`);
-      console.log(`stderr: ${stderr}`);
-      return cb(null, profile);
-    });
-  });
 }));
 
-app.get('/auth/google', passport.authenticate('google', {
-  scope: ['profile', 'https://www.googleapis.com/auth/drive']
-}));
+app.get('/auth/google', 
+  passport.authenticate('google', {
+    scope: ['profile', 'https://www.googleapis.com/auth/drive']
+  })
+);
 
+app.get('/auth/google/callback',
+  passport.authenticate('google'),
+  async (req, res) => {
 
+    try {
+      const code = req.query.code;
+      
+      // Get CLIENT_ID from passport config
+      const client = new OAuth2Client(passportConfig.clientID);
+      
+      const tokens = await client.getToken(code);
 
-app.get('/auth/google/callback', 
-  passport.authenticate('google'), 
-  (req, res) => {
-  
-  const code = req.query.code;
+      req.user.accessToken = tokens.access_token;
+      req.user.refreshToken = tokens.refresh_token;
 
-  const {OAuth2Client} = require('google-auth-library');
-  const client = new OAuth2Client(CLIENT_ID);
-  
-  async function getTokens(){
-    const r = await client.getToken(code);
-    return r.tokens;
-  }
-
-  getTokens()
-    .then(tokens => {
-      const {access_token, refresh_token} = tokens;
-      req.user.accessToken = access_token;
-      req.user.refreshToken = refresh_token;
       res.redirect('/');
-    })
-    .catch(error => {
-      // handle error
+
+    } catch (err) {
+      console.error(err);
+      return res.status(500);
+    }
+
+});
+
+// ...other routes 
+
+app.get('/list-files', isAdmin, async (req, res) => {
+
+  try {
+
+    const accessToken = req.user.accessToken;
+
+    const drive = google.drive({
+      version: 'v3',
+      auth: accessToken
+    });
+    
+    const response = await drive.files.list({
+      q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents`,
+      fields: 'files(id, name)',
+      spaces: 'drive'
     });
 
-});
+    res.send(response.data.files);
 
-let dummyServiceStatus = 'stopped';
-
-function isAdmin(req, res, next) {
-  if (req.user) {
-    next();
-  } else {
-    res.status(403).send('You are not authorized to perform this action');
+  } catch (err) {
+    res.status(500).send(err);
   }
-}
 
-app.get('/status', isAdmin, (req, res) => {
-  res.send(`Dummy service is currently: ${dummyServiceStatus}`);
-});
-
-app.post('/start', isAdmin, (req, res) => {
-  dummyServiceStatus = 'running';
-  res.send('Dummy service started');
-});
-
-app.post('/stop', isAdmin, (req, res) => {
-  dummyServiceStatus = 'stopped';
-  res.send('Dummy service stopped');
-});
-
-app.get('/list-files', isAdmin, (req, res) => {
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({
-    access_token: req.user.accessToken,
-    expiry_date: (new Date()).getTime() + (1000 * 60)  
-  });
-
-  app.get('/files', (req, res) => {
-    const accessToken = req.user.accessToken;
-    // TBD
-  });
-
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-  drive.files.list({
-    q: "'" + YOUR_FOLDER_ID + "' in parents", // Replace YOUR_FOLDER_ID with your actual folder ID
-    fields: 'files(id, name)',
-    spaces: 'drive'
-  }, (err, result) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      res.send(result.data.files);
-    }
-  });
 });
 
 app.listen(port, () => {
-  console.log(`App listening at http://localhost:${port}`)
+  console.log(`App listening on port ${port}`); 
 });
