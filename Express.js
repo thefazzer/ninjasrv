@@ -1,7 +1,9 @@
 require('dotenv').config();
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
-const exec = require('child_process').exec;
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 const { OAuth2Client } = require('googleapis').Auth;
 
 const passport = require('passport');
@@ -15,6 +17,8 @@ const port = 3000;
 
 const GOOGLE_DRIVE_FOLDER_ID = '18DAq4TnVPNDKgl7a_rLN-XQfaEKrbwXJ';
 const TRANSCRIPT_FOLDER_NAME = 'transcript5'
+
+let transcriptsFolderId;
 
 app.use(session({ 
   secret: process.env.SESSION_SECRET,
@@ -120,8 +124,10 @@ async function createGoogleDriveDirectory(drive, parentFolderId, folderName) {
       fields: 'id'
     });
     console.log('Folder ID: ', response.data.id);
+    return response.data.id;
   } else {
     console.log('Folder already exists');
+    return response.data.files[0].id;
   }
 }
 
@@ -141,9 +147,93 @@ app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
       spaces: 'drive'
     });
 
-    await createGoogleDriveDirectory(drive, GOOGLE_DRIVE_FOLDER_ID, TRANSCRIPT_FOLDER_NAME); // Call the function here
+    transcriptsFolderId = await createGoogleDriveDirectory(drive, GOOGLE_DRIVE_FOLDER_ID, TRANSCRIPT_FOLDER_NAME); // Call the function here
 
     res.send(JSON.stringify(response.data.files, null, 2)); // Pretty print
+
+  } catch (err) {
+    res.status(500).send(err);
+  }
+});
+
+// Download file from Google Drive, process and upload it back
+async function processAudioFiles() {
+  try {
+    // Create the transcripts directory if it doesn't exist
+    if (!fs.existsSync(path.join(os.tmpdir(), 'transcripts'))) {
+      fs.mkdirSync(path.join(os.tmpdir(), 'transcripts'));
+    }
+
+    const audioFiles = await drive.files.list({
+      q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder'`,
+      fields: 'files(id, name)',
+      spaces: 'drive'
+    });
+
+    for (const file of audioFiles.data.files) {
+      const filename = file.name;
+      const base_filename = path.basename(filename, '.wav');
+      
+      const dest = fs.createWriteStream(path.join(os.tmpdir(), filename));
+      let progress = 0;
+
+      const res = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'stream' });
+      await new Promise((resolve, reject) => {
+        res.data
+          .on('end', async () => {
+            console.log(`Downloaded ${filename}`);
+
+            if (!fs.existsSync(path.join(os.tmpdir(), 'transcripts'))) {
+              fs.mkdirSync(path.join(os.tmpdir(), 'transcripts'));
+            }
+
+            // Checking if file has been processed
+            if (fs.existsSync(path.join(os.tmpdir(), 'transcripts', `${base_filename}.txt`)) || fs.existsSync(path.join(os.tmpdir(), 'transcripts', `${base_filename}_16khz.txt`))) {
+              console.log(`File ${filename} has been processed before.`);
+              return;
+            }
+
+            // Check the sample rate
+            const { stdout, stderr } = await exec(`file ${path.join(os.tmpdir(), filename)}`);
+
+            // Create a separate variable for the converted filename
+            let processedFilename = filename;
+
+            // Convert to 16kHz if necessary
+            if (!stdout.includes("16000 Hz")) {
+              await exec(`ffmpeg -i ${path.join(os.tmpdir(), filename)} -af "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-90dB" -ar 16000 ${path.join(os.tmpdir(), `${base_filename}_16khz.wav`)}`);
+              processedFilename = `${base_filename}_16khz.wav`;
+            }
+            
+            // Run the C++ main program and output to transcripts directory
+            await exec(`../whisper.cpp/main -m ../whisper.cpp/models/ggml-small.en-tdrz.bin -f ${path.join(os.tmpdir(), processedFilename)} -tdrz -otxt -of ${path.join(os.tmpdir(), 'transcripts', `${base_filename}.txt`)}`);
+          })
+          .on('error', err => {
+            console.error(`Error downloading file ${filename}: ${err}`);
+            reject(err);
+          })
+          .pipe(dest)
+          .on('finish', resolve)
+          .on('error', reject);
+      });
+    }
+  } catch (err) {
+    console.log('The API returned an error: ' + err);
+  }
+}
+app.get('/process-files', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({access_token: req.user.accessToken});
+
+    const drive = google.drive({
+      version: 'v3',
+      auth: oauth2Client
+    });
+
+    await processAudioFiles(drive);
+
+    res.send('Files processed');
 
   } catch (err) {
     res.status(500).send(err);
