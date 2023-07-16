@@ -79,7 +79,7 @@ app.get('/auth/google/callback',
 
 const { isAuthenticated } = require('passport');
 
-app.get('/list-files', isAuthenticated, async (req, res, next) => {
+/* app.get('/list-files', isAuthenticated, async (req, res, next) => {
 
   try {
 
@@ -102,7 +102,7 @@ app.get('/list-files', isAuthenticated, async (req, res, next) => {
     res.status(500).send(err);
   }
 
-});
+}); */
 
 app.listen(port, () => {
   console.log(`App listening on port ${port}`); 
