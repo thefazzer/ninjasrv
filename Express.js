@@ -1,6 +1,8 @@
+require('dotenv').config();
 const fs = require('fs');
-const path = require('path'); 
+const path = require('path');
 const exec = require('child_process').exec;
+const { OAuth2Client } = require('googleapis').auth;
 
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -11,11 +13,10 @@ const { google } = require('googleapis');
 const app = express();
 const port = 3000;
 
-// Use more descriptive constant name  
 const GOOGLE_DRIVE_FOLDER_ID = '1VgStbKc5zL0DFJ7BRZYGf7nlu7-OOThM';
 
 app.use(session({ 
-  secret: 'your-secret',
+  secret: process.env.SESSION_SECRET,
   resave: false, 
   saveUninitialized: true 
 }));
@@ -31,19 +32,19 @@ passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
-// Get CLIENT_ID from passport config
 const passportConfig = {
-  clientID: '740807273849-h1btj8ui5fkdvq14a9ulnl601ukbq6p0.apps.googleusercontent.com',
-  clientSecret: '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',
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: 'http://localhost:3000/callback'
 };
 
-passport.use(new GoogleStrategy(passportConfig, 
+passport.use(new GoogleStrategy(passportConfig,
   (accessToken, refreshToken, profile, done) => {
-
-  //...
-
-}));
+    profile.accessToken = accessToken;
+    profile.refreshToken = refreshToken;
+    done(null, profile);
+  })
+);
 
 app.get('/auth/google', 
   passport.authenticate('google', {
@@ -53,36 +54,13 @@ app.get('/auth/google',
 
 app.get('/auth/google/callback',
   passport.authenticate('google'),
-  async (req, res) => {
+  (req, res) => {
+    res.redirect('/');
+  }
+);
 
-    try {
-      const code = req.query.code;
-      
-      // Get CLIENT_ID from passport config
-      const client = new OAuth2Client(passportConfig.clientID);
-      
-      const tokens = await client.getToken(code);
-
-      req.user.accessToken = tokens.access_token;
-      req.user.refreshToken = tokens.refresh_token;
-
-      res.redirect('/');
-
-    } catch (err) {
-      console.error(err);
-      return res.status(500);
-    }
-
-});
-
-// ...other routes 
-
-const { isAuthenticated } = require('passport');
-
-/* app.get('/list-files', isAuthenticated, async (req, res, next) => {
-
+app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
   try {
-
     const accessToken = req.user.accessToken;
 
     const drive = google.drive({
@@ -101,8 +79,14 @@ const { isAuthenticated } = require('passport');
   } catch (err) {
     res.status(500).send(err);
   }
+});
 
-}); */
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) { 
+    return next(); 
+  }
+  res.redirect('/auth/google');
+}
 
 app.listen(port, () => {
   console.log(`App listening on port ${port}`); 
