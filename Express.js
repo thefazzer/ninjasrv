@@ -77,7 +77,9 @@ app.get('/auth/google/callback',
 
 // ...other routes 
 
-app.get('/list-files', isAdmin, async (req, res) => {
+const { isAuthenticated } = require('passport');
+
+app.get('/list-files', isAuthenticated, async (req, res) => {
 
   try {
 
