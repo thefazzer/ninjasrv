@@ -13,7 +13,8 @@ const { google } = require('googleapis');
 const app = express();
 const port = 3000;
 
-const GOOGLE_DRIVE_FOLDER_ID = '1VgStbKc5zL0DFJ7BRZYGf7nlu7-OOThM';
+const GOOGLE_DRIVE_FOLDER_ID = '18DAq4TnVPNDKgl7a_rLN-XQfaEKrbwXJ';
+const TRANSCRIPT_FOLDER_NAME = 'transcript5'
 
 app.use(session({ 
   secret: process.env.SESSION_SECRET,
@@ -99,6 +100,31 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+async function createGoogleDriveDirectory(drive, parentFolderId, folderName) {
+  // check if folder exists
+  let response = await drive.files.list({
+    q: `mimeType='application/vnd.google-apps.folder' and '${parentFolderId}' in parents and name='${folderName}' and trashed=false`,
+    fields: 'files(id, name)',
+    spaces: 'drive'
+  });
+  
+  // if not exists, create one
+  if (response.data.files.length == 0) {
+    var fileMetadata = {
+      'name': folderName,
+      'mimeType': 'application/vnd.google-apps.folder',
+      'parents': [parentFolderId]
+    };
+    response = await drive.files.create({
+      resource: fileMetadata,
+      fields: 'id'
+    });
+    console.log('Folder ID: ', response.data.id);
+  } else {
+    console.log('Folder already exists');
+  }
+}
+
 app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
   try {
     const oauth2Client = new google.auth.OAuth2();
@@ -115,13 +141,14 @@ app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
       spaces: 'drive'
     });
 
-    res.send(response.data.files);
+    await createGoogleDriveDirectory(drive, GOOGLE_DRIVE_FOLDER_ID, TRANSCRIPT_FOLDER_NAME); // Call the function here
+
+    res.send(JSON.stringify(response.data.files, null, 2)); // Pretty print
 
   } catch (err) {
     res.status(500).send(err);
   }
 });
-
 
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) { 
