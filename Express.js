@@ -2,7 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
-const { OAuth2Client } = require('googleapis').auth;
+const { OAuth2Client } = require('googleapis').Auth;
 
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -59,13 +59,54 @@ app.get('/auth/google/callback',
   }
 );
 
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  const oauth2Client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID, 
+    process.env.GOOGLE_CLIENT_SECRET, 
+    'http://localhost:3000/callback'
+  );
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    const userinfoResponse = await oauth2Client.request({
+      url: 'https://www.googleapis.com/oauth2/v1/userinfo'
+    });
+
+    const user = {
+      id: userinfoResponse.data.id,
+      email: userinfoResponse.data.email,
+      name: userinfoResponse.data.name,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+    };
+
+    req.login(user, (err) => {
+      if (err) {
+        console.error('Error logging in', err);
+        res.status(500).send('Error logging in');
+        return;
+      }
+
+      res.redirect('/');
+    });
+  
+  } catch (err) {
+    console.error('Error retrieving access token', err);
+    res.status(500).send('Error retrieving access token');
+  }
+});
+
 app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
   try {
-    const accessToken = req.user.accessToken;
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({access_token: req.user.accessToken});
 
     const drive = google.drive({
       version: 'v3',
-      auth: accessToken
+      auth: oauth2Client
     });
     
     const response = await drive.files.list({
@@ -80,6 +121,7 @@ app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
     res.status(500).send(err);
   }
 });
+
 
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) { 

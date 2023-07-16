@@ -6,12 +6,12 @@
     "start": "node Express.js"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "express": "^4.17.1",
-    "google-auth-library": "^7.1.2",
-    "passport-google-oauth20": "*",
-    "googleapis": "*",
     "express-session": "^1.17.2",
+    "google-auth-library": "^7.1.2",
+    "googleapis": "^122.0.0",
     "passport": "*",
-    "dotenv": "*"
+    "passport-google-oauth20": "*"
   }
 }
