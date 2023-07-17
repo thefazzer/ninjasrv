@@ -205,7 +205,7 @@ async function processAudioFiles(drive) {
             .pipe(dest);
         });
       } else {
-        console.log(`File ${filename} already exists in /tmp directory. Skipping download.`);
+        console.log(`File ${filename} already exists in ${TMP_FOLDER_NAME}} directory. Skipping download.`);
       }
 
       await new Promise((resolve, reject) => {
