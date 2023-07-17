@@ -162,7 +162,14 @@ async function processAudioFiles() {
     // Create the transcripts directory if it doesn't exist
     if (!fs.existsSync(path.join(os.tmpdir(), 'transcripts'))) {
       fs.mkdirSync(path.join(os.tmpdir(), 'transcripts'));
-    }
+    
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({access_token: req.user.accessToken});
+  
+    const drive = google.drive({
+        version: 'v3',
+        auth: oauth2Client
+    });
 
     const audioFiles = await drive.files.list({
       q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder'`,
@@ -217,6 +224,7 @@ async function processAudioFiles() {
           .on('error', reject);
       });
     }
+  }
   } catch (err) {
     console.log('The API returned an error: ' + err);
   }
