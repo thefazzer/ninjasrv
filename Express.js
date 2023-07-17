@@ -8,7 +8,7 @@ const { OAuth2Client } = require('googleapis').Auth;
 
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const express = require('express');][-]
+const express = require('express');
 const session = require('express-session');
 const { google } = require('googleapis');
 

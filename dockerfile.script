@@ -24,10 +24,10 @@ RUN apt-get update && \
     apt-get install -y google-drive-ocamlfuse
 
 # Clone and build whisper
-# WORKDIR /whisper.cpp
-# RUN git clone https://github.com/ggerganov/whisper.cpp.git .
-# RUN bash ./models/download-ggml-model.sh base.en
-# RUN make
+WORKDIR /whisper.cpp
+RUN git clone https://github.com/ggerganov/whisper.cpp.git .
+RUN bash ./models/download-ggml-model.sh base.en
+RUN make
 
 WORKDIR /
 
