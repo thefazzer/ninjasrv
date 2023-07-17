@@ -8,16 +8,18 @@ const { OAuth2Client } = require('googleapis').Auth;
 
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const express = require('express');
+const express = require('express');][-]
 const session = require('express-session');
 const { google } = require('googleapis');
 
 const app = express();
 const port = 3000;
 
+const cutoffDate = new Date('2023-06-14');
+
 const GOOGLE_DRIVE_FOLDER_ID = '18DAq4TnVPNDKgl7a_rLN-XQfaEKrbwXJ';
 const TRANSCRIPT_FOLDER_NAME = 'transcript5'
-
+const TMP_FOLDER_NAME = path.join(os.tmpdir(), 'ninja')
 let transcriptsFolderId;
 
 app.use(session({ 
@@ -157,19 +159,12 @@ app.get('/list-files', ensureAuthenticated, async (req, res, next) => {
 });
 
 // Download file from Google Drive, process and upload it back
-async function processAudioFiles() {
+async function processAudioFiles(drive) {
   try {
     // Create the transcripts directory if it doesn't exist
-    if (!fs.existsSync(path.join(os.tmpdir(), 'transcripts'))) {
-      fs.mkdirSync(path.join(os.tmpdir(), 'transcripts'));
-    
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({access_token: req.user.accessToken});
-  
-    const drive = google.drive({
-        version: 'v3',
-        auth: oauth2Client
-    });
+    if (!fs.existsSync(path.join(TMP_FOLDER_NAME, 'transcripts'))) {
+      fs.mkdirSync(path.join(TMP_FOLDER_NAME, 'transcripts'), { recursive: true });
+    };
 
     const audioFiles = await drive.files.list({
       q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder'`,
@@ -179,41 +174,65 @@ async function processAudioFiles() {
 
     for (const file of audioFiles.data.files) {
       const filename = file.name;
-      const base_filename = path.basename(filename, '.wav');
-      
-      const dest = fs.createWriteStream(path.join(os.tmpdir(), filename));
-      let progress = 0;
 
+      // Split the filename to get the date string
+      const dateStr = filename.split('_')[1];
+
+      // Parse the date from the filename
+      const fileDateParts = dateStr.split('-');
+      const fileDate = new Date(fileDateParts[2], fileDateParts[1] - 1, fileDateParts[0]);
+
+      // Compare the file date to the cutoff date
+      if (fileDate <= cutoffDate) {
+        continue;
+      }
+  
+
+      const base_filename = path.basename(filename, '.wav');
       const res = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'stream' });
+      const dest = fs.createWriteStream(path.join(TMP_FOLDER_NAME, filename));
+
+      if (!fs.existsSync(path.join(TMP_FOLDER_NAME, filename))) {
+        // File doesn't exist in /tmp directory, so download it
+        
+        await new Promise((resolve, reject) => {
+          res.data
+            .on('end', () => {
+              console.log(`Downloaded ${filename}`);
+              resolve();
+            })
+            .on('error', err => reject(err))
+            .pipe(dest);
+        });
+      } else {
+        console.log(`File ${filename} already exists in /tmp directory. Skipping download.`);
+      }
+
       await new Promise((resolve, reject) => {
         res.data
           .on('end', async () => {
-            console.log(`Downloaded ${filename}`);
-
-            if (!fs.existsSync(path.join(os.tmpdir(), 'transcripts'))) {
-              fs.mkdirSync(path.join(os.tmpdir(), 'transcripts'));
-            }
+            console.log(`Processing ${filename}`);
 
             // Checking if file has been processed
-            if (fs.existsSync(path.join(os.tmpdir(), 'transcripts', `${base_filename}.txt`)) || fs.existsSync(path.join(os.tmpdir(), 'transcripts', `${base_filename}_16khz.txt`))) {
+            if (fs.existsSync(path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}.txt`)) || fs.existsSync(path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}_16khz.txt`))) {
               console.log(`File ${filename} has been processed before.`);
               return;
             }
 
             // Check the sample rate
-            const { stdout, stderr } = await exec(`file ${path.join(os.tmpdir(), filename)}`);
+            const { stdout, stderr } = await exec(`file ${path.join(TMP_FOLDER_NAME, filename)}`);
 
             // Create a separate variable for the converted filename
             let processedFilename = filename;
 
             // Convert to 16kHz if necessary
             if (!stdout.includes("16000 Hz")) {
-              await exec(`ffmpeg -i ${path.join(os.tmpdir(), filename)} -af "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-90dB" -ar 16000 ${path.join(os.tmpdir(), `${base_filename}_16khz.wav`)}`);
+              await exec(`ffmpeg -i ${path.join(TMP_FOLDER_NAME, filename)} -af "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-90dB" -ar 16000 ${path.join(TMP_FOLDER_NAME, `${base_filename}_16khz.wav`)}`);
               processedFilename = `${base_filename}_16khz.wav`;
             }
             
             // Run the C++ main program and output to transcripts directory
-            await exec(`../whisper.cpp/main -m ../whisper.cpp/models/ggml-small.en-tdrz.bin -f ${path.join(os.tmpdir(), processedFilename)} -tdrz -otxt -of ${path.join(os.tmpdir(), 'transcripts', `${base_filename}.txt`)}`);
+            await exec(`../whisper.cpp/main -m ../whisper.cpp/models/ggml-small.en-tdrz.bin -f ${path.join(TMP_FOLDER_NAME, processedFilename)} -tdrz -otxt -of ${path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}.txt`)}`);
           })
           .on('error', err => {
             console.error(`Error downloading file ${filename}: ${err}`);
@@ -224,9 +243,8 @@ async function processAudioFiles() {
           .on('error', reject);
       });
     }
-  }
   } catch (err) {
-    console.log('The API returned an error: ' + err);
+      console.log('The API returned an error: ' + err);
   }
 }
 app.get('/process-files', ensureAuthenticated, async (req, res, next) => {
