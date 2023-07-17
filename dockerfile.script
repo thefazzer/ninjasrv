@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
   git \
   curl \
   make \
+  file \
   g++ \
   libssl-dev \
   libasound2-dev \

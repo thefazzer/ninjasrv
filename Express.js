@@ -232,7 +232,7 @@ async function processAudioFiles(drive) {
             }
             
             // Run the C++ main program and output to transcripts directory
-            await exec(`../whisper.cpp/main -m ../whisper.cpp/models/ggml-small.en-tdrz.bin -f ${path.join(TMP_FOLDER_NAME, processedFilename)} -tdrz -otxt -of ${path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}.txt`)}`);
+            await exec(`../whisper.cpp/main -m ../whisper.cpp/models/ggml-small.en-tdrz.bin -f ${path.join(TMP_FOLDER_NAME, processedFilename)} -tdrz -otxt -of ${path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}`)}`);
           })
           .on('error', err => {
             console.error(`Error downloading file ${filename}: ${err}`);
