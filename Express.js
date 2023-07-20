@@ -257,7 +257,11 @@ async function processAudioFiles(drive) {
         fields: 'id'
       });
       console.log(`Uploaded ${base_filename}.txt to Google Drive in folder ${TRANSCRIPT_FOLDER_NAME}.`);
-
+    }
+  } catch (err) {
+      console.log('The API returned an error: ' + err);
+  }
+}
 app.get('/process-files', ensureAuthenticated, async (req, res, next) => {
   try {
     const oauth2Client = new google.auth.OAuth2();
@@ -276,7 +280,7 @@ app.get('/process-files', ensureAuthenticated, async (req, res, next) => {
     res.status(500).send(err);
   }
 });
-
+    
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) { 
     return next(); 
