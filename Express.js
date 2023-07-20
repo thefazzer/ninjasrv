@@ -245,7 +245,7 @@ async function processAudioFiles(drive) {
       // Upload the transcript file to Google Drive
       const fileMetadata = {
         'name': `${base_filename}.txt`,
-        'parents': [TRANSCRIPT_FOLDER_ID]  // Replace this with your transcript folder's ID
+        'parents': [transcriptsFolderId]  // Replace this with your transcript folder's ID
       };
       const media = {
         mimeType: 'text/plain',
