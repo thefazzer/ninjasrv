@@ -187,7 +187,6 @@ async function processAudioFiles(drive) {
         continue;
       }
   
-
       const base_filename = path.basename(filename, '.wav');
       const res = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'stream' });
       const dest = fs.createWriteStream(path.join(TMP_FOLDER_NAME, filename));
@@ -242,11 +241,23 @@ async function processAudioFiles(drive) {
           .on('finish', resolve)
           .on('error', reject);
       });
-    }
-  } catch (err) {
-      console.log('The API returned an error: ' + err);
-  }
-}
+
+      // Upload the transcript file to Google Drive
+      const fileMetadata = {
+        'name': `${base_filename}.txt`,
+        'parents': [TRANSCRIPT_FOLDER_ID]  // Replace this with your transcript folder's ID
+      };
+      const media = {
+        mimeType: 'text/plain',
+        body: fs.createReadStream(path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}.txt`))
+      };
+      await drive.files.create({
+        resource: fileMetadata,
+        media: media,
+        fields: 'id'
+      });
+      console.log(`Uploaded ${base_filename}.txt to Google Drive in folder ${TRANSCRIPT_FOLDER_NAME}.`);
+
 app.get('/process-files', ensureAuthenticated, async (req, res, next) => {
   try {
     const oauth2Client = new google.auth.OAuth2();
