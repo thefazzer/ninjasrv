@@ -289,7 +289,10 @@ async function processAudioFiles(drive) {
             // Run the C++ main program and output to transcripts directory
             await exec(`../whisper.cpp/main -m ../whisper.cpp/models/ggml-base.en.bin -f ${path.join(TMP_FOLDER_NAME, processedFilename)} -tdrz -otxt -of ${path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}`)}`);
             
-            transcriptsFolderId = await createGoogleDriveDirectory(drive, GOOGLE_DRIVE_FOLDER_ID, TRANSCRIPT_FOLDER_NAME); // Call the function here
+            GOOGLE_DRIVE_USERFOLDER_ID = await getFolderIdByPath(drive, process.env.ROOT_REMOTE);
+            console.log(GOOGLE_DRIVE_USERFOLDER_ID);
+  
+            transcriptsFolderId = await createGoogleDriveDirectory(drive, GOOGLE_DRIVE_USERFOLDER_ID, TRANSCRIPT_FOLDER_NAME); // Call the function here
       
             if (fs.existsSync(path.join(TMP_FOLDER_NAME, 'transcripts', `${base_filename}.txt`))) {
               // Upload the transcript file to Google Drive
